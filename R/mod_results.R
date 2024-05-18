@@ -193,41 +193,35 @@ if(any(model$not.na == FALSE)){
 #' @export
 
 
-pred_interval_esmeans <- function(model, mm, mod, ...){
-
-        tmp <- summary(mm)
-        tmp <- tmp[ , ]
-  test.stat <- stats::qt(0.975, tmp$df[[1]])
-
-  if(length(model$tau2) <= 1 | length(model$gamma2) <= 1){ # Note this should fix #46 but code is repetitive and needs to be cleaned up. Other issue is how this plays with different rma. objects. uni models will treat slots for gamma NULL and we need to deal with this. 
-                 sigmas <- sum(model$sigma2)
-                 taus   <- model$tau2
-                 gamma2 <- ifelse(is.null(model$gamma2), 0, model$gamma2)
-                     PI <- test.stat * base::sqrt(tmp$SE^2 + sigmas + taus + gamma2)
-        } else {
-                 sigmas <- sum(model$sigma2)
-                 taus   <- model$tau2
-                 gammas <- model$gamma2
-                  w_tau <- model$g.levels.k
-                w_gamma <- model$g.levels.k
-
-            if(mod == "1"){
-                tau <- weighted_var(taus, weights = w_tau)
-              gamma <- weighted_var(gamma, weights = w_gamma)
-                     PI <- test.stat * sqrt(tmp$SE^2 + sigmas + tau + gamma)
-
-            } else {
-               PI <- test.stat * sqrt(tmp$SE^2 + sigmas + taus + gammas)
-            }
-        }
-
+pred_interval_esmeans <- function(model, mm, ...){
+  
+  tmp <- summary(mm)
+  tmp <- tmp[ , ]
+  test.stat <- stats::qt(mm@misc$level+(1-mm@misc$level)/2, df=tmp$df[[1]])
+  
+  V_se <- tmp$SE^2
+  V_ri <- sum(model$sigma2)
+  
+  n_g <- colnames(model$G)
+  colnames(mm@linfct)[1] <- if(colnames(mm@linfct)[1]=="(Intercept)"){"intrcpt"} else{colnames(mm@linfct)[1]}
+  g_g <- model$X[,colnames(mm@linfct) %in% n_g]
+  V_g <- if(is.null(n_g)){0} else{sum(diag(crossprod((g_g %*% model$G),g_g)))/nobs.rma(model)}
+  
+  n_h <- colnames(model$H)
+  colnames(mm@linfct)[1] <- if(colnames(mm@linfct)[1]=="(Intercept)"){"intrcpt"} else{colnames(mm@linfct)[1]}
+  g_h <- model$X[,colnames(mm@linfct) %in% n_h]
+  V_h <- if(is.null(n_h)){0} else{sum(diag(crossprod((g_h %*% model$H),g_h)))/nobs.rma(model)}
+  
+  V=cbind(V_ri,V_g,V_h)%>%
+    as.data.frame()%>%
+    rowSums()
+  
+  PI <- test.stat * sqrt(V_se + V)
+  
   tmp$lower.PI <- tmp$emmean - PI
   tmp$upper.PI <- tmp$emmean + PI
-
-  # renaming "overall" to ""
-  if(tmp[1,1] == "overall"){tmp[,1] <- "intrcpt"}
-
-return(tmp)
+  
+  return(tmp)
 }
 
 #' @title get_data_raw
