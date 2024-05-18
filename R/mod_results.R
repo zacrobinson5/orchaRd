@@ -193,7 +193,7 @@ if(any(model$not.na == FALSE)){
 #' @export
 
 
-pred_interval_esmeans <- function(model, mm, ...){
+pred_interval_esmeans <- function(model, mm, mod, ...){
   
   tmp <- summary(mm)
   tmp <- tmp[ , ]
@@ -220,7 +220,10 @@ pred_interval_esmeans <- function(model, mm, ...){
   
   tmp$lower.PI <- tmp$emmean - PI
   tmp$upper.PI <- tmp$emmean + PI
-  
+
+  # renaming "overall" to ""
+  if(tmp[1,1] == "overall"){tmp[,1] <- "intrcpt"}
+	
   return(tmp)
 }
 
